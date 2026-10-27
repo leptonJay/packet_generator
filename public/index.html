@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="NetPulse - Professional Web-based UDP & TCP Packet Generator and Traffic Analyzer with real-time telemetry, hex inspector, and built-in receiver.">
+  <title>NetPulse | UDP & TCP Packet Generator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="dark-theme">
+  <!-- Top Navigation & Live Telemetry Header -->
+  <header class="app-header">
+    <div class="brand">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <h1>NetPulse</h1>
+        <span class="badge-tag">PACKET LAB v1.0</span>
+      </div>
+    </div>
+
+    <!-- Live Telemetry Bar -->
+    <div class="telemetry-bar">
+      <div class="stat-pill" title="Packets Sent">
+        <span class="stat-label">TX PKTS</span>
+        <span class="stat-value text-cyan" id="metricTotalSent">0</span>
+      </div>
+      <div class="stat-pill" title="Packets Received / Replies">
+        <span class="stat-label">RX PKTS</span>
+        <span class="stat-value text-emerald" id="metricTotalReceived">0</span>
+      </div>
+      <div class="stat-pill" title="Current Outbound Throughput">
+        <span class="stat-label">PPS</span>
+        <span class="stat-value text-amber" id="metricLivePps">0</span>
+      </div>
+      <div class="stat-pill" title="Bandwidth Usage">
+        <span class="stat-label">BANDWIDTH</span>
+        <span class="stat-value" id="metricLiveBps">0 KB/s</span>
+      </div>
+      <div class="stat-pill" title="Socket Errors">
+        <span class="stat-label">ERRORS</span>
+        <span class="stat-value text-danger" id="metricErrors">0</span>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <div class="connection-status" id="wsStatus">
+        <span class="status-dot"></span>
+        <span class="status-text">CONNECTING</span>
+      </div>
+      <button class="btn btn-ghost btn-sm" id="btnResetStats" title="Reset all telemetry counters">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+        Reset Stats
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Grid Dashboard -->
+  <main class="dashboard-grid">
+    <!-- Panel 1: Target & Protocol Configuration -->
+    <section class="glass-panel" id="panelTargetConfig">
+      <div class="panel-header">
+        <div class="panel-title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
+          <h2>Transmission Target</h2>
+        </div>
+        <div class="protocol-selector" role="radiogroup">
+          <button class="proto-btn active" id="btnProtoUDP" data-proto="UDP" type="button">UDP</button>
+          <button class="proto-btn" id="btnProtoTCP" data-proto="TCP" type="button">TCP</button>
+        </div>
+      </div>
+
+      <div class="panel-body">
+        <!-- Target IP -->
+        <div class="form-group">
+          <div class="label-row">
+            <label for="inputTargetIp">Target IP / Hostname</label>
+            <div class="quick-chips">
+              <button type="button" class="chip" data-preset-ip="127.0.0.1">localhost</button>
+              <button type="button" class="chip" data-preset-ip="1.1.1.1">1.1.1.1</button>
+              <button type="button" class="chip" data-preset-ip="255.255.255.255">broadcast</button>
+            </div>
+          </div>
+          <div class="input-with-icon">
+            <svg class="input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+            <input type="text" id="inputTargetIp" value="127.0.0.1" placeholder="e.g. 192.168.1.100 or 127.0.0.1" spellcheck="false" required>
+          </div>
+        </div>
+
+        <!-- Target Port -->
+        <div class="form-group">
+          <div class="label-row">
+            <label for="inputTargetPort">Target Port</label>
+            <div class="quick-chips">
+              <button type="button" class="chip" data-preset-port="5005">5005 (Echo)</button>
+              <button type="button" class="chip" data-preset-port="53">53 (DNS)</button>
+              <button type="button" class="chip" data-preset-port="80">80 (HTTP)</button>
+              <button type="button" class="chip" data-preset-port="514">514 (Syslog)</button>
+            </div>
+          </div>
+          <div class="input-with-icon">
+            <svg class="input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            <input type="number" id="inputTargetPort" value="5005" min="1" max="65535" placeholder="1 - 65535" required>
+          </div>
+        </div>
+
+        <!-- Advanced Options Toggle -->
+        <div class="form-options">
+          <label class="checkbox-container">
+            <input type="checkbox" id="checkListenResponse" checked>
+            <span class="checkmark"></span>
+            <span class="checkbox-text">Listen for Response / Echo Reply</span>
+          </label>
+          <div class="optional-local-port" id="udpLocalPortWrap">
+            <label for="inputLocalPort" class="text-subtle">Bind Local Port (0 = auto):</label>
+            <input type="number" id="inputLocalPort" value="0" min="0" max="65535" class="input-mini">
+          </div>
+        </div>
+
+        <!-- Transmission Mode Tabs -->
+        <div class="transmission-modes">
+          <label class="section-label">Transmission Mode</label>
+          <div class="mode-tabs">
+            <button class="mode-tab active" data-mode="single" id="tabModeSingle" type="button">Single Shot</button>
+            <button class="mode-tab" data-mode="burst" id="tabModeBurst" type="button">Burst</button>
+            <button class="mode-tab" data-mode="stream" id="tabModeStream" type="button">Continuous</button>
+          </div>
+
+          <!-- Burst Options -->
+          <div class="mode-details" id="modeConfigBurst" style="display: none;">
+            <div class="grid-2">
+              <div class="form-group-sub">
+                <label for="inputBurstCount">Packet Count</label>
+                <input type="number" id="inputBurstCount" value="10" min="1" max="1000">
+              </div>
+              <div class="form-group-sub">
+                <label for="inputBurstDelay">Interval (ms)</label>
+                <input type="number" id="inputBurstDelay" value="20" min="0" max="5000">
+              </div>
+            </div>
+          </div>
+
+          <!-- Stream Options -->
+          <div class="mode-details" id="modeConfigStream" style="display: none;">
+            <div class="grid-2">
+              <div class="form-group-sub">
+                <label for="inputStreamPps">Target Rate (Packets / sec)</label>
+                <input type="number" id="inputStreamPps" value="20" min="1" max="2000">
+              </div>
+              <div class="form-group-sub">
+                <label for="inputStreamLimit">Limit (0 = unlimited)</label>
+                <input type="number" id="inputStreamLimit" value="0" min="0" max="100000">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Action Triggers -->
+        <div class="action-footer">
+          <button class="btn btn-primary btn-glow" id="btnTriggerSend" type="button">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            <span id="btnTriggerLabel">Send Single Packet</span>
+          </button>
+          <button class="btn btn-danger" id="btnStopStream" type="button" style="display: none;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/></svg>
+            Stop Stream
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Panel 2: Payload Composer & Hex Visualizer -->
+    <section class="glass-panel" id="panelPayload">
+      <div class="panel-header">
+        <div class="panel-title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+          <h2>Payload Composer</h2>
+        </div>
+        <div class="payload-type-selector">
+          <button class="type-btn active" data-type="text">Plaintext</button>
+          <button class="type-btn" data-type="hex">Hex Bytes</button>
+          <button class="type-btn" data-type="random">Random Noise</button>
+          <button class="type-btn" data-type="template">Template</button>
+        </div>
+      </div>
+
+      <div class="panel-body">
+        <!-- Plaintext / Custom String Input -->
+        <div class="payload-input-wrap" id="wrapInputText">
+          <div class="label-row">
+            <label for="inputPayloadText">Payload Content (UTF-8)</label>
+            <span class="byte-count-badge" id="badgeByteSize">0 bytes</span>
+          </div>
+          <textarea id="inputPayloadText" rows="4" placeholder="Enter text payload to transmit...">Hello from NetPulse Packet Generator!</textarea>
+        </div>
+
+        <!-- Hex Input -->
+        <div class="payload-input-wrap" id="wrapInputHex" style="display: none;">
+          <div class="label-row">
+            <label for="inputPayloadHex">Raw Hex Stream (Separated or continuous)</label>
+            <span class="byte-count-badge" id="badgeHexByteSize">0 bytes</span>
+          </div>
+          <textarea id="inputPayloadHex" rows="4" placeholder="48 65 6c 6c 6f 20 57 6f 72 6c 64 21" spellcheck="false">4e 65 74 50 75 6c 73 65 20 50 61 63 6b 65 74</textarea>
+        </div>
+
+        <!-- Random Generator -->
+        <div class="payload-input-wrap" id="wrapInputRandom" style="display: none;">
+          <div class="label-row">
+            <label for="inputRandomSize">Random Payload Size (bytes)</label>
+          </div>
+          <div class="random-controls">
+            <input type="range" id="rangeRandomSize" min="8" max="1400" value="128" step="8">
+            <div class="input-with-suffix">
+              <input type="number" id="inputRandomSize" value="128" min="1" max="65507">
+              <span>bytes</span>
+            </div>
+            <button type="button" class="btn btn-outline btn-sm" id="btnRegenerateRandom">Regenerate</button>
+          </div>
+        </div>
+
+        <!-- Templates -->
+        <div class="payload-input-wrap" id="wrapInputTemplate" style="display: none;">
+          <div class="label-row">
+            <label for="selectTemplate">Protocol Template</label>
+          </div>
+          <select id="selectTemplate" class="custom-select">
+            <option value="echo_ping">Echo Ping (High-precision timestamp probe)</option>
+            <option value="dns_query">DNS Query (Standard A-Record lookup)</option>
+            <option value="http_get">HTTP GET Request (HTTP/1.1 Probe)</option>
+            <option value="syslog">Syslog Message (RFC 5424)</option>
+            <option value="ntp_request">NTP Client Request (48-byte UDP)</option>
+          </select>
+
+          <!-- Template Custom Parameter -->
+          <div class="form-group-sub mt-2" id="wrapTemplateParam">
+            <label id="labelTemplateParam" for="inputTemplateParam">Domain to Query:</label>
+            <input type="text" id="inputTemplateParam" value="google.com" placeholder="e.g. google.com">
+          </div>
+        </div>
+
+        <!-- Live Hex & ASCII Inspection Preview -->
+        <div class="hex-preview-container">
+          <div class="preview-header">
+            <span>LIVE PAYLOAD PREVIEW</span>
+            <span class="preview-info" id="previewLengthInfo">Length: 0 bytes</span>
+          </div>
+          <div class="hex-grid" id="liveHexGrid">
+            <div class="hex-column" id="previewHex"></div>
+            <div class="ascii-column" id="previewAscii"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Panel 3: Local Receiver / Echo Server & Network Diagnostic -->
+    <section class="glass-panel" id="panelReceiver">
+      <div class="panel-header">
+        <div class="panel-title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M12 12v9"/><path d="m8 17 4 4 4-4"/></svg>
+          <h2>Local Receiver & Echo Server</h2>
+        </div>
+        <span class="badge-status" id="listenerStatusBadge">INACTIVE</span>
+      </div>
+
+      <div class="panel-body">
+        <p class="description-text">
+          Spin up an instant local socket listener on your machine to test packet transmission, inspect incoming datagrams, or auto-echo packets back.
+        </p>
+
+        <div class="grid-2">
+          <div class="form-group-sub">
+            <label for="selectListenerProto">Protocol</label>
+            <select id="selectListenerProto" class="custom-select">
+              <option value="UDP">UDP Listener</option>
+              <option value="TCP">TCP Listener</option>
+            </select>
+          </div>
+          <div class="form-group-sub">
+            <label for="inputListenerPort">Listen Port</label>
+            <input type="number" id="inputListenerPort" value="5005" min="1" max="65535">
+          </div>
+        </div>
+
+        <div class="form-options mt-2">
+          <label class="checkbox-container">
+            <input type="checkbox" id="checkAutoEcho" checked>
+            <span class="checkmark"></span>
+            <span class="checkbox-text">Auto-Echo received packets back to sender</span>
+          </label>
+        </div>
+
+        <div class="listener-actions mt-3">
+          <button class="btn btn-outline" id="btnToggleListener" type="button">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            <span id="btnListenerText">Start Local Listener</span>
+          </button>
+        </div>
+
+        <div class="active-listeners-list" id="activeListenersBox">
+          <span class="text-subtle">No active listeners. Click above to test locally.</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Panel 4: Real-time Live Packet Stream & Inspector (Full Width) -->
+    <section class="glass-panel panel-full" id="panelConsole">
+      <div class="panel-header">
+        <div class="panel-title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+          <h2>Packet Activity Feed & Inspector</h2>
+        </div>
+        <div class="console-controls">
+          <div class="filter-tabs">
+            <button class="filter-btn active" data-filter="all">All Events</button>
+            <button class="filter-btn" data-filter="sent">Sent (TX)</button>
+            <button class="filter-btn" data-filter="received">Received (RX)</button>
+          </div>
+          <button class="btn btn-ghost btn-sm" id="btnClearFeed" title="Clear packet log">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            Clear Feed
+          </button>
+          <label class="checkbox-container auto-scroll-check">
+            <input type="checkbox" id="checkAutoScroll" checked>
+            <span class="checkmark"></span>
+            <span class="checkbox-text">Auto-scroll</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="console-layout">
+        <!-- Left: Live Activity Table -->
+        <div class="table-container">
+          <table class="packet-table" id="tablePackets">
+            <thead>
+              <tr>
+                <th style="width: 100px;">Time</th>
+                <th style="width: 70px;">Type</th>
+                <th style="width: 70px;">Proto</th>
+                <th>Target / Source</th>
+                <th style="width: 90px;">Length</th>
+                <th style="width: 100px;">Latency</th>
+                <th>Payload Preview</th>
+              </tr>
+            </thead>
+            <tbody id="packetFeedBody">
+              <tr class="empty-row" id="rowEmptyPlaceholder">
+                <td colspan="7">
+                  <div class="empty-state">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 4.24 4.24"/><path d="m14.83 9.17 4.24-4.24"/><path d="m14.83 14.83 4.24 4.24"/><path d="m9.17 14.83-4.24 4.24"/></svg>
+                    <span>No packets dispatched yet. Configure your destination and click "Send Single Packet" or test locally!</span>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Right: Selected Packet Detailed Hex/ASCII Inspector Modal/Sidebar -->
+        <div class="packet-detail-panel" id="packetDetailPanel">
+          <div class="detail-header">
+            <h3>Selected Packet Inspection</h3>
+            <button class="btn-close" id="btnCloseDetail">&times;</button>
+          </div>
+          <div class="detail-body" id="detailBodyContent">
+            <p class="text-subtle select-prompt">Click any packet row on the left to inspect its complete raw byte headers and payload.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Notification Toast Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
